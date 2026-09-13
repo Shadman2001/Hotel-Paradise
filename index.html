@@ -692,8 +692,8 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <h2>Admin Management Panel</h2>
                 <div>
-                    <button class="tab-btn active" onclick="switchAdminTab('sales')">Sales Report</button>
-                    <button class="tab-btn" onclick="switchAdminTab('attendance')">Employee Attendance</button>
+                    <button class="tab-btn active" id="tabBtnSales" onclick="switchAdminTab('sales')">Sales Report</button>
+                    <button class="tab-btn" id="tabBtnAttendance" onclick="switchAdminTab('attendance')">Employee Attendance</button>
                 </div>
             </div>
 
@@ -829,19 +829,18 @@
 
         function selectPaymentMode(mode) {
             selectedPayment = mode;
-            document.getElementById('opt-ssl').classList.remove('active');
-            document.getElementById('opt-card').classList.remove('active');
-            document.getElementById('opt-cash').classList.remove('active');
-
-            if(mode === 'sslcommerz') {
+            document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('active'));
+            
+            const sslPanel = document.getElementById('sslcommerzPanel');
+            if (mode === 'sslcommerz') {
                 document.getElementById('opt-ssl').classList.add('active');
-                document.getElementById('sslcommerzPanel').style.display = 'block';
-            } else if(mode === 'card') {
+                sslPanel.style.display = 'block';
+            } else if (mode === 'card') {
                 document.getElementById('opt-card').classList.add('active');
-                document.getElementById('sslcommerzPanel').style.display = 'none';
+                sslPanel.style.display = 'none';
             } else {
                 document.getElementById('opt-cash').classList.add('active');
-                document.getElementById('sslcommerzPanel').style.display = 'none';
+                sslPanel.style.display = 'none';
             }
         }
 
@@ -853,9 +852,9 @@
             const checkOut = document.getElementById('checkOutDate').value;
             const bookingId = 'HP-' + Math.floor(1000 + Math.random() * 9000);
             
-            let payMethodLabel = 'SSLCOMMERZ Payment';
-            if(selectedPayment === 'card') payMethodLabel = 'Credit Card Direct';
-            if(selectedPayment === 'cash') payMethodLabel = 'Pay at Hotel';
+            let methodText = 'SSLCOMMERZ';
+            if (selectedPayment === 'card') methodText = 'Credit Card';
+            if (selectedPayment === 'cash') methodText = 'Pay at Hotel';
 
             const newBooking = {
                 id: bookingId,
@@ -864,114 +863,132 @@
                 room: currentRoom,
                 checkIn: checkIn,
                 checkOut: checkOut,
-                method: payMethodLabel,
+                method: methodText,
                 amount: currentPrice,
                 status: 'Confirmed'
             };
 
-            bookings.push(newBooking);
+            bookings.unshift(newBooking);
 
-            // Populate Success View
-            document.getElementById('txnPaymentMethod').innerText = payMethodLabel;
             document.getElementById('confBookingId').innerText = bookingId;
             document.getElementById('confGuestName').innerText = name;
             document.getElementById('confRoomName').innerText = currentRoom;
             document.getElementById('confAmount').innerText = '৳' + currentPrice;
+            document.getElementById('txnPaymentMethod').innerText = methodText;
 
             document.getElementById('bookingFormSection').style.display = 'none';
             document.getElementById('bookingSuccessSection').style.display = 'block';
         }
 
-        // Customer Dashboard Logic
+        // Customer Portal
         function openCustomerModal() {
-            renderCustomerHistory();
+            document.getElementById('custSearchEmail').value = '';
+            renderCustomerTable(bookings);
             document.getElementById('customerModal').style.display = 'flex';
         }
 
-        function renderCustomerHistory(filterEmail = '') {
-            const tbody = document.getElementById('custHistoryTable');
-            tbody.innerHTML = '';
-            
-            const filtered = filterEmail 
-                ? bookings.filter(b => b.email.toLowerCase().includes(filterEmail.toLowerCase()))
-                : bookings;
-
-            if(filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--gray);">No booking history found</td></tr>';
+        function filterCustomerBookings() {
+            const searchEmail = document.getElementById('custSearchEmail').value.trim().toLowerCase();
+            if (!searchEmail) {
+                renderCustomerTable(bookings);
                 return;
             }
-
-            filtered.forEach(b => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${b.id}</strong></td>
-                        <td>${b.room}</td>
-                        <td>${b.checkIn} to ${b.checkOut}</td>
-                        <td>৳${b.amount}</td>
-                        <td><span style="color:var(--success); font-weight:bold;">${b.status}</span></td>
-                    </tr>
-                `;
-            });
+            const filtered = bookings.filter(b => b.email.toLowerCase().includes(searchEmail));
+            renderCustomerTable(filtered);
         }
 
-        function filterCustomerBookings() {
-            const email = document.getElementById('custSearchEmail').value;
-            renderCustomerHistory(email);
+        function renderCustomerTable(data) {
+            const tbody = document.getElementById('custHistoryTable');
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--gray);">No reservations found.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map(b => `
+                <tr>
+                    <td><strong>${b.id}</strong></td>
+                    <td>${b.room}</td>
+                    <td>${b.checkIn} to ${b.checkOut}</td>
+                    <td>৳${b.amount}</td>
+                    <td><span style="color:var(--success); font-weight:bold;">${b.status}</span></td>
+                </tr>
+            `).join('');
         }
 
-        // Admin Management Dashboard Logic
+        // Admin Portal & Tabs
         function openAdminModal() {
-            renderAdminDashboard();
+            renderAdminSales();
             renderAttendanceTable();
             document.getElementById('adminModal').style.display = 'flex';
         }
 
-        function switchAdminTab(tabName) {
-            const tabs = document.querySelectorAll('.tab-btn');
-            tabs.forEach(t => t.classList.remove('active'));
-
-            if(tabName === 'sales') {
-                tabs[0].classList.add('active');
+        function switchAdminTab(tab) {
+            if (tab === 'sales') {
                 document.getElementById('adminSalesTab').style.display = 'block';
                 document.getElementById('adminAttendanceTab').style.display = 'none';
+                document.getElementById('tabBtnSales').classList.add('active');
+                document.getElementById('tabBtnAttendance').classList.remove('active');
             } else {
-                tabs[1].classList.add('active');
                 document.getElementById('adminSalesTab').style.display = 'none';
                 document.getElementById('adminAttendanceTab').style.display = 'block';
+                document.getElementById('tabBtnSales').classList.remove('active');
+                document.getElementById('tabBtnAttendance').classList.add('active');
             }
         }
 
-        function renderAdminDashboard() {
-            const tbody = document.getElementById('salesReportBody');
-            tbody.innerHTML = '';
-            let totalRev = 0;
-            let sslCount = 0;
-
-            bookings.forEach(b => {
-                totalRev += b.amount;
-                if(b.method.includes('SSLCOMMERZ')) sslCount++;
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${b.id}</td>
-                        <td>${b.name}</td>
-                        <td>${b.room}</td>
-                        <td>${b.method}</td>
-                        <td>৳${b.amount}</td>
-                    </tr>
-                `;
-            });
-
+        function renderAdminSales() {
             document.getElementById('adminTotalBookings').innerText = bookings.length;
-            document.getElementById('adminTotalRevenue').innerText = '৳' + totalRev.toLocaleString();
+            const totalRev = bookings.reduce((sum, b) => sum + b.amount, 0);
+            document.getElementById('adminTotalRevenue').innerText = '৳' + totalRev;
+            const sslCount = bookings.filter(b => b.method.includes('SSLCOMMERZ')).length;
             document.getElementById('adminSslCount').innerText = sslCount;
+
+            const tbody = document.getElementById('salesReportBody');
+            tbody.innerHTML = bookings.map(b => `
+                <tr>
+                    <td>${b.id}</td>
+                    <td>${b.name}</td>
+                    <td>${b.room}</td>
+                    <td>${b.method}</td>
+                    <td>৳${b.amount}</td>
+                </tr>
+            `).join('');
         }
 
-        // Sales Report PDF Generator
+        // Employee Attendance Handler
+        function markAttendance(e) {
+            e.preventDefault();
+            const name = document.getElementById('empName').value;
+            const role = document.getElementById('empRole').value;
+            const status = document.getElementById('empStatus').value;
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const empId = 'EMP-' + (100 + attendanceLogs.length + 1);
+
+            attendanceLogs.unshift({ id: empId, name, role, time, status });
+            document.getElementById('empName').value = '';
+            renderAttendanceTable();
+        }
+
+        function renderAttendanceTable() {
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = attendanceLogs.map(a => `
+                <tr>
+                    <td><strong>${a.id}</strong></td>
+                    <td>${a.name}</td>
+                    <td>${a.role}</td>
+                    <td>${a.time}</td>
+                    <td><span style="color:${a.status === 'Present' ? 'var(--success)' : a.status === 'Late' ? '#d97706' : '#dc2626'}; font-weight:bold;">${a.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        // PDF Export Handler
         function downloadSalesReportPDF() {
             const element = document.getElementById('pdfReportContainer');
-            document.getElementById('pdfHeader').style.display = 'block';
+            const pdfHeader = document.getElementById('pdfHeader');
             document.getElementById('pdfDate').innerText = new Date().toLocaleDateString();
 
+            pdfHeader.style.display = 'block';
+            
             const opt = {
                 margin:       0.5,
                 filename:     'Hotel_Paradise_Sales_Report.pdf',
@@ -981,59 +998,21 @@
             };
 
             html2pdf().set(opt).from(element).save().then(() => {
-                document.getElementById('pdfHeader').style.display = 'none';
+                pdfHeader.style.display = 'none';
             });
         }
 
-        // Employee Attendance Tracking Logic
-        function markAttendance(e) {
-            e.preventDefault();
-            const name = document.getElementById('empName').value;
-            const role = document.getElementById('empRole').value;
-            const status = document.getElementById('empStatus').value;
-            const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const empId = 'EMP-' + (100 + attendanceLogs.length + 1);
-
-            attendanceLogs.unshift({
-                id: empId,
-                name: name,
-                role: role,
-                time: timeNow,
-                status: status
-            });
-
-            renderAttendanceTable();
-            document.getElementById('empName').value = '';
+        // Utility Modal Close
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
         }
 
-        function renderAttendanceTable() {
-            const tbody = document.getElementById('attendanceTableBody');
-            tbody.innerHTML = '';
-
-            attendanceLogs.forEach(log => {
-                let statusColor = log.status === 'Present' ? 'green' : (log.status === 'Late' ? 'orange' : 'red');
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${log.id}</strong></td>
-                        <td>${log.name}</td>
-                        <td>${log.role}</td>
-                        <td>${log.time}</td>
-                        <td><span style="color:${statusColor}; font-weight:bold;">${log.status}</span></td>
-                    </tr>
-                `;
-            });
-        }
-
-        // Close Modals
-        function closeModal(id) {
-            document.getElementById(id).style.display = 'none';
-        }
-
+        // Close modal when clicking outside of it
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
             }
-        }
+        };
     </script>
 </body>
 </html>
